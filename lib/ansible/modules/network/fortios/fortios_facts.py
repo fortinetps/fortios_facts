@@ -178,10 +178,10 @@ from ansible.module_utils.six import iteritems
 
 
 class Factbase(object):
-    def __init__(self, module, fos):
+    def __init__(self, module, fos, uri=None):
         self.module = module
         self.fos = fos
-
+        self.uri = uri
         self.facts = dict()
 
 
@@ -189,11 +189,9 @@ class System(Factbase):
     def populate_facts(self):
         fos = self.fos
         vdom = 'root' #data['vdom']
-        resp = fos.monitor('system', 'status/select', vdom=vdom)
-
-        self.facts.update({
-            'system_status_select': resp
-        })
+        if self.uri.startswith(tuple(FACT_SYSTEM_SUBSETS)):
+            resp = fos.monitor('system', self.uri[len('system_'):].replace('_','/'), vdom=vdom)
+            self.facts.update({self.uri: resp})
 
 
 def login(data, fos):
@@ -211,12 +209,20 @@ def login(data, fos):
     fos.login(host, username, password, verify=ssl_verify)
 
 
+
 FACT_SUBSETS = dict(
     system=System,
 )
   
 VALID_SUBSETS = frozenset(FACT_SUBSETS.keys())
-  
+
+FACT_SYSTEM_SUBSETS = frozenset([
+    "system_firmware_select",
+    "system_ha-checksums_select",
+    "system_interface_select",
+    "system_status_select"
+])
+
 def main():
     """
     Main entry point for module execution
@@ -271,21 +277,25 @@ def main():
                 exclude = True
             else:
                 exclude = False
-    
-            if subset not in VALID_SUBSETS:
+            
+            if not subset.startswith(tuple(VALID_SUBSETS)):
                 module.fail_json(msg='Subset must be one of [%s], got %s' %
                                  (', '.join(VALID_SUBSETS), subset))
     
             if exclude:
-                exclude_subsets.add(subset)
+                for valid_subset in VALID_SUBSETS:
+                    if subset.startswith(valid_subset):
+                        exclude_subsets.add({subset: valid_subset})
             else:
-                runable_subsets.add(subset)
+                for valid_subset in VALID_SUBSETS:
+                    if subset.startswith(valid_subset):
+                        runable_subsets.add((subset, valid_subset))
     
         if not runable_subsets:
             runable_subsets.update(VALID_SUBSETS)
     
         runable_subsets.difference_update(exclude_subsets)
-        runable_subsets.add('system')
+        # runable_subsets.add('system')
     
         facts = dict()
         facts['gather_subset'] = list(runable_subsets)
@@ -293,8 +303,8 @@ def main():
         # Create instance classes, e.g. System, Session etc.
         instances = list()
     
-        for key in runable_subsets:
-            instances.append(FACT_SUBSETS[key](module, fos))
+        for (subset, valid_subset) in runable_subsets:
+            instances.append(FACT_SUBSETS[valid_subset](module, fos, subset))
     
         # Populate facts for instances
         for inst in instances:

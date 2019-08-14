@@ -5,10 +5,9 @@
         "password": "fortinet",
         "vdom": "root",
         "gather_subset": [
-            "system"
-        ],
-        "gather_network_resources": [
-            "system"
+            "system_status_select",
+            "system_interface_select",
+            "system_ha-checksums_select"
         ]
     }
   }
