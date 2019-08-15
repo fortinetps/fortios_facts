@@ -9,6 +9,7 @@
             "type": "python",
             "request": "launch",
             "program": "/usr/local/lib/python3.7/site-packages/ansible/modules/network/fortios/fortios_facts.py",
+            // "program": "/workspaces/fortios_facts/lib/ansible/modules/network/fortios/fortios_facts.py",
             // "cwd": "${workspaceRoot}",
             "env": {"PYTHONPATH": "${workspaceRoot}"},
             "justMyCode": false,
